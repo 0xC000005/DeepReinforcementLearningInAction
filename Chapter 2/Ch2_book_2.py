@@ -16,7 +16,7 @@ class ContextualBandit:
 
     def initialize_state_reward_distribution_table(self):
         # self.bandit_matrix = np.random.rand(self.number_of_states, self.number_of_bandits)
-        self.bandit_matrix = np.array([[0.2, 0.4, 0.7], [0.1, 0.7, 0.8], [0.1, 0.1, 0.1]])
+        self.bandit_matrix = np.array([[0.0, 0.0, 0.7], [0.0, 0.7, 0.0], [0.7, 0.0, 0.0]])
     def reward(self, probability):
         temp_reward = 0
         for i in range(10):
@@ -84,9 +84,13 @@ def train(env, epochs=5000, learning_rate=1e-2):
         current_reward = torch.Tensor(one_hot_encoded_reward)
         rewards.append(current_reward)
 
+        # calculate the loss
         loss = loss_function(reward_prediction, current_reward)
+        # zero the gradients before backward pass because Pytorch accumulates the gradients
         optimizer.zero_grad()
+        # backpropagation
         loss.backward()
+        # update the weights
         optimizer.step()
         # update the current environment state
         current_state = torch.Tensor(one_hot_encoding(env.get_current_state()))
@@ -114,6 +118,9 @@ if __name__ == '__main__':
     plt.ylabel('Avg Reward')
     plt.title('Average Reward vs Plays')
     plt.show()
+
+    for i in rewards:
+        print(i)
 
 
 
