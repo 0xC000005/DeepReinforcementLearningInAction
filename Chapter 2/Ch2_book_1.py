@@ -51,7 +51,6 @@ def softmax(tau=2.12):
     return softmax_probability
 
 
-
 if __name__ == '__main__':
     print('PROBABILITIES_OF_ALL_BANDITS: ', PROBABILITIES_OF_ALL_BANDITS)
     fig, ax = plt.subplots(2, 1)
@@ -85,7 +84,6 @@ if __name__ == '__main__':
     ax[1].set_ylabel('Avg Reward')
     ax[1].set_title('Average Reward vs Plays')
     running_average_reward_over_time = [0]
-
 
     for i in range(500):
         probability_of_choosing_each_bandit = softmax()
