@@ -7,7 +7,7 @@ import random
 import matplotlib.pyplot as plt
 
 # detect if there is a GPU available
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda")
 # printout the device name
 print(device)
 
