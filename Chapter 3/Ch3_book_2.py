@@ -2,86 +2,79 @@ import numpy as np
 import torch
 from tqdm import tqdm
 from Gridworld import Gridworld
+from collections import deque
 import random
 import matplotlib.pyplot as plt
 
+# detect if there is a GPU available
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-def train(epsilon, model, loss_function, optimizer, gamma, action_set):
-    global losses
-    epochs = 1000
+
+def train_with_experience_replay(epsilon, model, mode, loss_function, optimizer, gamma, action_set):
+    epochs = 5000
     losses = []
+    memory_size = 1000
+    batch_size = 200
+    replay = deque(maxlen=memory_size)
+    max_moves = 50
+    h = 0
     for i in tqdm(range(epochs)):
-        # initialize gridworld, for each epoch, we start a new game
-        game = Gridworld(size=4, mode='static')
-        # get the state representation of the current gridworld as a vector, plus normalized random noise
-        init_state_ = game.board.render_np().reshape(1, 64) + np.random.rand(1, 64) / 10.0
+        game = Gridworld(size=4, mode=mode)
+        init_state_ = game.board.render_np().reshape(1, 64) + np.random.rand(1, 64) / 100.0
         init_state = torch.from_numpy(init_state_).float()
         game_over = False
-
         current_state = init_state
-
+        move_counter = 0
         while not game_over:
-            # get the expected reward for each action for the current state
+            move_counter += 1
             q_values_ = model(current_state)
-            q_values = q_values_.data.numpy()[0]
-
-            # epsilon greedy exploration
+            q_values = q_values_.data.numpy()
             if random.random() < epsilon:
-                # choose a random action
                 action_taken_ = np.random.randint(0, 4)
             else:
-                # choose the action with the highest expected reward
                 action_taken_ = np.argmax(q_values)
-
             action_taken = action_set[action_taken_]
-            # apply the action to the gridworld, get the reward and the next state
             game.makeMove(action_taken)
-
             previous_state = current_state
-            current_state_ = game.board.render_np().reshape(1, 64) + np.random.rand(1, 64) / 10.0
+            current_state_ = game.board.render_np().reshape(1, 64) + np.random.rand(1, 64) / 100.0
             current_state = torch.from_numpy(current_state_).float()
-
             current_reward = game.reward()
+            game_over = True if current_reward > 0 else False
 
-            with torch.no_grad():
-                # get the expected reward for each action for the next state
-                # TODO: why did the book reshape the current_state twice?
-                q_values_after_move_ = model(current_state.reshape(1, 64))
+            experience = (previous_state, action_taken_, current_reward, current_state, game_over)
+            replay.append(experience)
 
-            # get the maximum expected reward for the next state
-            max_q_values_after_move = torch.max(q_values_after_move_)
+            if len(replay) > batch_size:
+                minibatch = random.sample(replay, batch_size)
+                previous_state_batch = torch.cat([s[0] for s in minibatch])
+                action_batch = torch.Tensor([s[1] for s in minibatch])
+                reward_batch = torch.Tensor([s[2] for s in minibatch])
+                current_state_batch = torch.cat([s[3] for s in minibatch])
+                game_over_batch = torch.Tensor([s[4] for s in minibatch])
 
-            if current_reward == -1:
-                # if the game is not over, the update the q value of the previous state
-                update = current_reward + gamma * max_q_values_after_move
-            else:
-                # if the game is over, the update is only the reward
-                update = current_reward
+                recomputed_q_values_per_previous_stages_batch = model(previous_state_batch)
+                with torch.no_grad():
+                    recomputed_q_values_per_current_stages_batch = model(current_state_batch)
 
-                # set the game_over flag to True
-                game_over = True
+                target_q_values_for_learning = (reward_batch +
+                                                gamma *
+                                                torch.max(recomputed_q_values_per_current_stages_batch, dim=1)[0]
+                                                * (1 - game_over_batch))
 
-            # calculate the update the q value of the previous state
-            update = torch.Tensor([update]).detach()
-            # update the q value of the previous state
-            updated_q_values_of_previous_state = q_values_.squeeze()[action_taken_]
+                old_q_values_for_learning = recomputed_q_values_per_previous_stages_batch.gather(
+                    dim=1, index=action_batch.long().unsqueeze(dim=1)).squeeze()
 
-            # calculate the loss
-            loss = loss_function(update, updated_q_values_of_previous_state)
-            optimizer.zero_grad()
-            loss.backward()
+                loss = loss_function(old_q_values_for_learning, target_q_values_for_learning.detach())
+                optimizer.zero_grad()
+                loss.backward()
+                losses.append(loss.item())
+                optimizer.step()
 
-            # record the loss for performance monitoring
-            losses.append(loss.item())
-            optimizer.step()
+                if current_reward != -1 or move_counter > max_moves:
+                    game_over = True
+                    move_counter = 0
 
-            previous_state = current_state
-
-            # decrease the epsilon each epoch
-            if epsilon > 0.1:
-                epsilon -= 1 / epochs
-
-    return model, losses
+    return losses, model
 
 
 def test_model(model, mode='static', display=True):
@@ -128,7 +121,6 @@ def test_model(model, mode='static', display=True):
                 if display:
                     print("Game LOST. Reward: %s" % (current_reward,))
 
-
         move_counter += 1
         if move_counter > 15:
             if display:
@@ -136,6 +128,18 @@ def test_model(model, mode='static', display=True):
             break
     win = True if game_over == 2 else False
     return win
+
+
+def test_performance_with_experience_replay(model):
+    max_games = 1000
+    wins = 0
+    for i in range(max_games):
+        win = test_model(model, mode='random', display=False)
+        if win:
+            wins += 1
+    win_perc = float(wins) / float(max_games)
+    print("Games played: {0}, # of wins: {1}".format(max_games, wins))
+    print("Win percentage: {}".format(win_perc))
 
 
 if __name__ == '__main__':
@@ -166,7 +170,8 @@ if __name__ == '__main__':
         3: 'r'
     }
 
-    model, losses = train(epsilon, model, loss_function, optimizer, gamma, action_set)
+    losses, model = train_with_experience_replay(epsilon, model, 'random',
+                                                 loss_function, optimizer, gamma, action_set)
 
     # plot the losses
     plt.plot()
@@ -179,4 +184,6 @@ if __name__ == '__main__':
     plt.plot(losses)
     plt.show()
 
-    test_model(model, mode='static', display=True)
+    test_model(model, mode='random', display=True)
+
+    test_performance_with_experience_replay(model)
