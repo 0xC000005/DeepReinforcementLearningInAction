@@ -8,6 +8,9 @@ import matplotlib.pyplot as plt
 
 # detect if there is a GPU available
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# printout the device name
+print(device)
+
 
 
 def train_with_experience_replay(epsilon, model, mode, loss_function, optimizer, gamma, action_set):
