@@ -29,11 +29,10 @@ def train_with_experience_replay(epsilon, model, mode, loss_function, optimizer,
         while not game_over:
             move_counter += 1
             q_values_ = model(current_state)
-            q_values = q_values_.data.cpu().numpy()
             if random.random() < epsilon:
-                action_taken_ = np.random.randint(0, 4)
+                action_taken_ = torch.randint(0, 4, (1,), device=device).item()
             else:
-                action_taken_ = np.argmax(q_values)
+                action_taken_ = torch.argmax(q_values_).item()
             action_taken = action_set[action_taken_]
             game.makeMove(action_taken)
             previous_state = current_state
@@ -93,8 +92,7 @@ def test_model(model, mode='static', display=True):
 
     while game_over == 1:
         q_values_ = model(current_state)
-        q_values = q_values_.data.cpu().numpy()
-        chosen_action_ = np.argmax(q_values)
+        chosen_action_ = torch.argmax(q_values_).item()
         chosen_action = action_set[chosen_action_]
 
         if display:
@@ -154,7 +152,7 @@ if __name__ == '__main__':
         torch.nn.Linear(l2, l3),
         torch.nn.ReLU(),
         torch.nn.Linear(l3, l4)
-    )
+    ).to(device)
 
     loss_function = torch.nn.MSELoss()
     learning_rate = 1e-3
