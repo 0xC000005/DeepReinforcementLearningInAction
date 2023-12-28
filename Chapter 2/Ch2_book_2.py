@@ -16,7 +16,14 @@ class ContextualBandit:
 
     def initialize_state_reward_distribution_table(self):
         # self.bandit_matrix = np.random.rand(self.number_of_states, self.number_of_bandits)
-        self.bandit_matrix = np.array([[0.2, 0.4, 0.7], [0.1, 0.7, 0.8], [0.1, 0.1, 0.1]])
+        self.bandit_matrix = np.array([[0.0, 0.0, 0.7], [0.0, 0.7, 0.0], [0.7, 0.0, 0.0]])
+
+    def if_current_bandit_taken_is_optimal(self, bandit):
+        if bandit == np.argmax(self.bandit_matrix[self.get_current_state()]):
+            return 1
+        else:
+            return 0
+
     def reward(self, probability):
         temp_reward = 0
         for i in range(10):
@@ -50,7 +57,7 @@ def one_hot_encoding(bandit, value=1):
     return one_hot_vector
 
 
-def softmax(vector, tau=2.12):
+def softmax(vector, tau=3):
     total = sum([np.exp(vector[i] / tau) for i in range(len(vector))])
     softmax_probability = [np.exp(vector[i] / tau) / total for i in range(len(vector))]
     return softmax_probability
@@ -61,6 +68,7 @@ def train(env, epochs=5000, learning_rate=1e-2):
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
     rewards = []
     running_average_of_most_recent_10_rewards_received_over_time = [0]
+    running_average_percentage_of_optimal_action_over_the_most_10_games = [0]
     most_recent_10_rewards_received = np.zeros(10)
     for i in tqdm.tqdm(range(epochs)):
         reward_prediction = model(current_state)
@@ -77,6 +85,14 @@ def train(env, epochs=5000, learning_rate=1e-2):
         running_average_of_most_recent_10_rewards_received_over_time.append(
             np.mean(most_recent_10_rewards_received))
 
+        # update the running average percentage of optimal action over the most recent 10 games: pop the oldest and
+        # append the newest
+        most_recent_10_optimal_action = np.append(most_recent_10_rewards_received[1:],
+                                                  env.if_current_bandit_taken_is_optimal(chosen_bandit))
+        # update the running average of the most recent 10 rewards received
+        running_average_percentage_of_optimal_action_over_the_most_10_games.append(
+            np.mean(most_recent_10_optimal_action))
+
         # convert Pytorch tensor to numpy array
         one_hot_encoded_reward = reward_prediction.data.numpy().copy()
         # update the chosen bandit with the current reward for training
@@ -84,14 +100,20 @@ def train(env, epochs=5000, learning_rate=1e-2):
         current_reward = torch.Tensor(one_hot_encoded_reward)
         rewards.append(current_reward)
 
+        # calculate the loss
         loss = loss_function(reward_prediction, current_reward)
+        # zero the gradients before backward pass because Pytorch accumulates the gradients
         optimizer.zero_grad()
+        # backpropagation
         loss.backward()
+        # update the weights
         optimizer.step()
         # update the current environment state
         current_state = torch.Tensor(one_hot_encoding(env.get_current_state()))
 
-    return np.array(rewards), running_average_of_most_recent_10_rewards_received_over_time
+    return (np.array(rewards),
+            running_average_of_most_recent_10_rewards_received_over_time,
+            running_average_percentage_of_optimal_action_over_the_most_10_games)
 
 
 if __name__ == '__main__':
@@ -107,13 +129,13 @@ if __name__ == '__main__':
 
     env = ContextualBandit(NUMBER_OF_BANDITS)
 
-    rewards, running_average_of_most_recent_10_rewards_received_over_time = train(env)
+    results = train(env)
+
+    rewards = results[0]
+    running_average_of_most_recent_10_rewards_received_over_time = results[1]
+    running_average_percentage_of_optimal_action_over_the_most_10_games = results[2]
 
     plt.plot(running_average_of_most_recent_10_rewards_received_over_time)
     plt.xlabel('Plays')
-    plt.ylabel('Avg Reward')
-    plt.title('Average Reward vs Plays')
+    plt.ylabel('Avg Optimal Percentage')
     plt.show()
-
-
-
