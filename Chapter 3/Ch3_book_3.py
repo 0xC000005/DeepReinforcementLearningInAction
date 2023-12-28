@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+import copy
 from tqdm import tqdm
 from Gridworld import Gridworld
 from collections import deque
@@ -7,14 +8,15 @@ import random
 import matplotlib.pyplot as plt
 
 
-def train_with_experience_replay(epsilon, model, mode, loss_function, optimizer, gamma, action_set):
+def train_with_experience_replay_and_target_network(epsilon, model, target_model, mode, loss_function, optimizer, gamma,
+                                                    action_set):
     epochs = 5000
     losses = []
     memory_size = 1000
     batch_size = 200
     replay = deque(maxlen=memory_size)
     max_moves = 50
-    h = 0
+    j = 0
     for i in tqdm(range(epochs)):
         game = Gridworld(size=4, mode=mode)
         init_state_ = game.board.render_np().reshape(1, 64) + np.random.rand(1, 64) / 100.0
@@ -23,6 +25,7 @@ def train_with_experience_replay(epsilon, model, mode, loss_function, optimizer,
         current_state = init_state
         move_counter = 0
         while not game_over:
+            j += 1
             move_counter += 1
             q_values_ = model(current_state)
             q_values = q_values_.data.numpy()
@@ -37,7 +40,6 @@ def train_with_experience_replay(epsilon, model, mode, loss_function, optimizer,
             current_state = torch.from_numpy(current_state_).float()
             current_reward = game.reward()
             game_over = True if current_reward > 0 else False
-
             experience = (previous_state, action_taken_, current_reward, current_state, game_over)
             replay.append(experience)
 
@@ -49,29 +51,26 @@ def train_with_experience_replay(epsilon, model, mode, loss_function, optimizer,
                 current_state_batch = torch.cat([s[3] for s in minibatch])
                 game_over_batch = torch.Tensor([s[4] for s in minibatch])
 
-                recomputed_q_values_per_previous_stages_batch = model(previous_state_batch)
+                Q1 = model(previous_state_batch)
                 with torch.no_grad():
-                    recomputed_q_values_per_current_stages_batch = model(current_state_batch)
+                    Q2 = target_model(current_state_batch)
 
-                target_q_values_for_learning = (reward_batch +
-                                                gamma *
-                                                torch.max(recomputed_q_values_per_current_stages_batch, dim=1)[0]
-                                                * (1 - game_over_batch))
-
-                old_q_values_for_learning = recomputed_q_values_per_previous_stages_batch.gather(
-                    dim=1, index=action_batch.long().unsqueeze(dim=1)).squeeze()
-
-                loss = loss_function(old_q_values_for_learning, target_q_values_for_learning.detach())
+                Y = reward_batch + gamma * ((1 - game_over_batch) * torch.max(Q2, dim=1)[0])
+                X = Q1.gather(dim=1, index=action_batch.long().unsqueeze(dim=1)).squeeze()
+                loss = loss_function(X, Y.detach())
+                losses.append(loss.item())
                 optimizer.zero_grad()
                 loss.backward()
-                losses.append(loss.item())
                 optimizer.step()
 
-                if current_reward != -1 or move_counter > max_moves:
-                    game_over = True
-                    move_counter = 0
+                if j % sync_freq == 0:
+                    target_model.load_state_dict(model.state_dict())
 
-    return losses, model
+            if current_reward != -1 or move_counter > max_moves:
+                game_over = True
+                move_counter = 0
+
+    return losses, model, target_model
 
 
 def test_model(model, mode='static', display=True):
@@ -153,6 +152,11 @@ if __name__ == '__main__':
         torch.nn.Linear(l3, l4)
     )
 
+    # create a second model by making a deep copy of the original Q-network model
+    target_model = copy.deepcopy(model)
+    target_model.load_state_dict(model.state_dict())
+    sync_freq = 10
+
     loss_function = torch.nn.MSELoss()
     learning_rate = 1e-3
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
@@ -167,8 +171,14 @@ if __name__ == '__main__':
         3: 'r'
     }
 
-    losses, model = train_with_experience_replay(epsilon, model, 'random',
-                                                 loss_function, optimizer, gamma, action_set)
+    losses, model, target_model = train_with_experience_replay_and_target_network(epsilon=epsilon,
+                                                                                  model=model,
+                                                                                  target_model=target_model,
+                                                                                  mode='random',
+                                                                                  loss_function=loss_function,
+                                                                                  optimizer=optimizer,
+                                                                                  gamma=gamma,
+                                                                                  action_set=action_set)
 
     # plot the losses
     plt.plot()
@@ -179,8 +189,7 @@ if __name__ == '__main__':
     plt.ylabel('Loss')
     # plot the losses
     plt.plot(losses)
-    # save the plot
-    plt.savefig('losses.png')
+    plt.show()
 
     test_model(model, mode='random', display=True)
 
