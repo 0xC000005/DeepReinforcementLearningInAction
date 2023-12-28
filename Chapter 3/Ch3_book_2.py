@@ -182,7 +182,8 @@ if __name__ == '__main__':
     plt.ylabel('Loss')
     # plot the losses
     plt.plot(losses)
-    plt.show()
+    # save the plot
+    plt.savefig('losses.png')
 
     test_model(model, mode='random', display=True)
 
