@@ -51,22 +51,22 @@ def train(epsilon, model, mode, loss_function, optimizer, gamma, action_set):
             max_q_values_after_move = torch.max(q_values_after_move_)
 
             if current_reward == -1:
-                # if the game is not over, the update the q value of the previous state
-                update = current_reward + gamma * max_q_values_after_move
+                # if the game is not over, the target_q_value the q value of the previous state
+                target_q_value = current_reward + gamma * max_q_values_after_move
             else:
-                # if the game is over, the update is only the reward
-                update = current_reward
+                # if the game is over, the target_q_value is only the reward
+                target_q_value = current_reward
 
                 # set the game_over flag to True
                 game_over = True
 
-            # calculate the update the q value of the previous state
-            update = torch.Tensor([update]).detach()
-            # update the q value of the previous state
-            updated_q_values_of_previous_state = q_values_.squeeze()[action_taken_]
+            # calculate the target_q_value the q value of the previous state
+            target_q_value = torch.Tensor([target_q_value]).detach()
+            # target_q_value the q value of the previous state
+            predicted_q_value = q_values_.squeeze()[action_taken_]
 
             # calculate the loss
-            loss = loss_function(update, updated_q_values_of_previous_state)
+            loss = loss_function(target_q_value, predicted_q_value)
             optimizer.zero_grad()
             loss.backward()
 

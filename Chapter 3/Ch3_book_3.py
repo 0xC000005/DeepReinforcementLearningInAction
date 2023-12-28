@@ -16,18 +16,20 @@ def train_with_experience_replay_and_target_network(epsilon, model, target_model
     batch_size = 200
     replay = deque(maxlen=memory_size)
     max_moves = 50
-    j = 0
+    target_Q_sync_counter = 0
     for i in tqdm(range(epochs)):
+
         game = Gridworld(size=4, mode=mode)
         init_state_ = game.board.render_np().reshape(1, 64) + np.random.rand(1, 64) / 100.0
         init_state = torch.from_numpy(init_state_).float()
-        game_over = False
-        current_state = init_state
+        if_game_over = False
+        state_before_move = init_state
         move_counter = 0
-        while not game_over:
-            j += 1
+
+        while not if_game_over:
+            target_Q_sync_counter += 1
             move_counter += 1
-            q_values_ = model(current_state)
+            q_values_ = model(state_before_move)
             q_values = q_values_.data.numpy()
             if random.random() < epsilon:
                 action_taken_ = np.random.randint(0, 4)
@@ -35,39 +37,50 @@ def train_with_experience_replay_and_target_network(epsilon, model, target_model
                 action_taken_ = np.argmax(q_values)
             action_taken = action_set[action_taken_]
             game.makeMove(action_taken)
-            previous_state = current_state
-            current_state_ = game.board.render_np().reshape(1, 64) + np.random.rand(1, 64) / 100.0
-            current_state = torch.from_numpy(current_state_).float()
-            current_reward = game.reward()
-            game_over = True if current_reward > 0 else False
-            experience = (previous_state, action_taken_, current_reward, current_state, game_over)
+
+            state_after_move_ = game.board.render_np().reshape(1, 64) + np.random.rand(1, 64) / 100.0
+            state_after_move = torch.from_numpy(state_after_move_).float()
+
+            reward = game.reward()
+
+            if_game_over = True if reward > 0 else False
+
+            experience = (state_before_move, action_taken_, reward, state_after_move, if_game_over)
+
             replay.append(experience)
+
+            state_before_move = state_after_move
+            state_after_move = None
 
             if len(replay) > batch_size:
                 minibatch = random.sample(replay, batch_size)
-                previous_state_batch = torch.cat([s[0] for s in minibatch])
+
+                state_before_move_batch = torch.cat([s[0] for s in minibatch])
                 action_batch = torch.Tensor([s[1] for s in minibatch])
                 reward_batch = torch.Tensor([s[2] for s in minibatch])
-                current_state_batch = torch.cat([s[3] for s in minibatch])
-                game_over_batch = torch.Tensor([s[4] for s in minibatch])
+                state_after_move_batch = torch.cat([s[3] for s in minibatch])
+                if_game_over_batch = torch.Tensor([s[4] for s in minibatch])
 
-                Q1 = model(previous_state_batch)
+                Q1 = model(state_before_move_batch)
                 with torch.no_grad():
-                    Q2 = target_model(current_state_batch)
+                    Q2 = target_model(state_after_move_batch)
 
-                Y = reward_batch + gamma * ((1 - game_over_batch) * torch.max(Q2, dim=1)[0])
+                # Double DQN
+                Y = reward_batch + gamma * ((1 - if_game_over_batch) * torch.max(Q2, dim=1)[0])
                 X = Q1.gather(dim=1, index=action_batch.long().unsqueeze(dim=1)).squeeze()
+
                 loss = loss_function(X, Y.detach())
+
                 losses.append(loss.item())
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
 
-                if j % sync_freq == 0:
+                if target_Q_sync_counter % sync_freq == 0:
                     target_model.load_state_dict(model.state_dict())
 
-            if current_reward != -1 or move_counter > max_moves:
-                game_over = True
+            if reward != -1 or move_counter > max_moves:
+                if_game_over = True
                 move_counter = 0
 
     return losses, model, target_model
@@ -155,7 +168,7 @@ if __name__ == '__main__':
     # create a second model by making a deep copy of the original Q-network model
     target_model = copy.deepcopy(model)
     target_model.load_state_dict(model.state_dict())
-    sync_freq = 10
+    sync_freq = 50
 
     loss_function = torch.nn.MSELoss()
     learning_rate = 1e-3
