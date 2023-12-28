@@ -6,26 +6,30 @@ from collections import deque
 import random
 import matplotlib.pyplot as plt
 
+# detect if there is a GPU available
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# print out the device name
+print(device)
 
 def train_with_experience_replay(epsilon, model, mode, loss_function, optimizer, gamma, action_set):
+    model.to(device)
     epochs = 5000
     losses = []
     memory_size = 1000
     batch_size = 200
     replay = deque(maxlen=memory_size)
     max_moves = 50
-    h = 0
     for i in tqdm(range(epochs)):
         game = Gridworld(size=4, mode=mode)
         init_state_ = game.board.render_np().reshape(1, 64) + np.random.rand(1, 64) / 100.0
-        init_state = torch.from_numpy(init_state_).float()
+        init_state = torch.from_numpy(init_state_).float().to(device)
         game_over = False
         current_state = init_state
         move_counter = 0
         while not game_over:
             move_counter += 1
             q_values_ = model(current_state)
-            q_values = q_values_.data.numpy()
+            q_values = q_values_.data.cpu().numpy()
             if random.random() < epsilon:
                 action_taken_ = np.random.randint(0, 4)
             else:
@@ -34,7 +38,7 @@ def train_with_experience_replay(epsilon, model, mode, loss_function, optimizer,
             game.makeMove(action_taken)
             previous_state = current_state
             current_state_ = game.board.render_np().reshape(1, 64) + np.random.rand(1, 64) / 100.0
-            current_state = torch.from_numpy(current_state_).float()
+            current_state = torch.from_numpy(current_state_).float().to(device)
             current_reward = game.reward()
             game_over = True if current_reward > 0 else False
 
@@ -43,11 +47,11 @@ def train_with_experience_replay(epsilon, model, mode, loss_function, optimizer,
 
             if len(replay) > batch_size:
                 minibatch = random.sample(replay, batch_size)
-                previous_state_batch = torch.cat([s[0] for s in minibatch])
-                action_batch = torch.Tensor([s[1] for s in minibatch])
-                reward_batch = torch.Tensor([s[2] for s in minibatch])
-                current_state_batch = torch.cat([s[3] for s in minibatch])
-                game_over_batch = torch.Tensor([s[4] for s in minibatch])
+                previous_state_batch = torch.cat([s[0] for s in minibatch]).to(device)
+                action_batch = torch.Tensor([s[1] for s in minibatch]).to(device)
+                reward_batch = torch.Tensor([s[2] for s in minibatch]).to(device)
+                current_state_batch = torch.cat([s[3] for s in minibatch]).to(device)
+                game_over_batch = torch.Tensor([s[4] for s in minibatch]).to(device)
 
                 recomputed_q_values_per_previous_stages_batch = model(previous_state_batch)
                 with torch.no_grad():
@@ -73,12 +77,12 @@ def train_with_experience_replay(epsilon, model, mode, loss_function, optimizer,
 
     return losses, model
 
-
 def test_model(model, mode='static', display=True):
+    model.to(device)
     move_counter = 0
     test_game = Gridworld(mode=mode)
     init_state_ = test_game.board.render_np().reshape(1, 64) + np.random.rand(1, 64) / 10.0
-    init_state = torch.from_numpy(init_state_).float()
+    init_state = torch.from_numpy(init_state_).float().to(device)
 
     current_state = init_state
     game_over = 1
@@ -89,7 +93,7 @@ def test_model(model, mode='static', display=True):
 
     while game_over == 1:
         q_values_ = model(current_state)
-        q_values = q_values_.data.numpy()
+        q_values = q_values_.data.cpu().numpy()
         chosen_action_ = np.argmax(q_values)
         chosen_action = action_set[chosen_action_]
 
@@ -101,7 +105,7 @@ def test_model(model, mode='static', display=True):
         previous_state = current_state
 
         current_state_ = test_game.board.render_np().reshape(1, 64) + np.random.rand(1, 64) / 10.0
-        current_state = torch.from_numpy(current_state_).float()
+        current_state = torch.from_numpy(current_state_).float().to(device)
 
         if display:
             print(test_game.display())
@@ -126,8 +130,8 @@ def test_model(model, mode='static', display=True):
     win = True if game_over == 2 else False
     return win
 
-
 def test_performance_with_experience_replay(model):
+    model.to(device)
     max_games = 1000
     wins = 0
     for i in range(max_games):
@@ -137,7 +141,6 @@ def test_performance_with_experience_replay(model):
     win_perc = float(wins) / float(max_games)
     print("Games played: {0}, # of wins: {1}".format(max_games, wins))
     print("Win percentage: {}".format(win_perc))
-
 
 if __name__ == '__main__':
     l1 = 64
@@ -171,15 +174,11 @@ if __name__ == '__main__':
                                                  loss_function, optimizer, gamma, action_set)
 
     # plot the losses
-    plt.plot()
-    # add a title
+    plt.figure()
     plt.title('Loss per epoch')
-    # add x and y labels
     plt.xlabel('Epoch')
     plt.ylabel('Loss')
-    # plot the losses
     plt.plot(losses)
-    # save the plot
     plt.savefig('losses.png')
 
     test_model(model, mode='random', display=True)
