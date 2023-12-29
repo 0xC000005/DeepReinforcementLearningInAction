@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
+import tqdm
 
 
 def init_grid(size=(10,)):
@@ -63,7 +64,7 @@ def qfunc(s, theta, layers=None, afn=torch.tanh):
 
     # This is the first layer computation
     # The s input is a joint-action vector of dimension 4,1
-    bias = torch.one((1, theta_1.shape[1]))
+    bias = torch.ones((1, theta_1.shape[1]))
     l1 = s @ theta_1 + bias
     l1 = torch.nn.functional.elu(l1)
 
@@ -112,31 +113,41 @@ if __name__ == '__main__':
     params = get_params(size[0], 4 * hid_layer + hid_layer * 2)
     grid = init_grid(size)
     grid_ = grid.clone()
-    print(grid)
-    plt.imshow(np.expand_dims(grid, axis=0))
-    plt.show()
 
-    epochs = 200
-    lr = 0.001
-    losses = [[] for i in range(size[0])]
-
-    for i in range(epochs):
-        for j in range(size[0]):
-            l = j - 1 if j -1 >= 0 else size[0] - 1
-            r = j + 1 if j + 1 < size[0] else 0
-
-            state_ = grid[[l, r]]
-            state = joint_state(state_)
-            qvals = qfunc(state.float().detach(),
-                          params[j],
-                          layers=[(4, hid_layer), (hid_layer, 2)])
-            qmax = torch.argmax(qvals, dim=0).detach().item()
-
+    epochs = 2000
+    lr = 0.001  # A
+    losses = [[] for i in range(size[0])]  # B
+    for i in tqdm.tqdm(range(epochs)):
+        for j in range(size[0]):  # C
+            l = j - 1 if j - 1 >= 0 else size[0] - 1  # D
+            r = j + 1 if j + 1 < size[0] else 0  # E
+            state_ = grid[[l, r]]  # F
+            state = joint_state(state_)  # G
+            qvals = qfunc(state.float().detach(), params[j], layers=[(4, hid_layer), (hid_layer, 2)])
+            qmax = torch.argmax(qvals, dim=0).detach().item()  # H
             action = int(qmax)
-            grid_[j] = action
+            grid_[j] = action  # I
             reward = get_reward(state_.detach(), action)
-            with torch.no_grad():
+            with torch.no_grad():  # J
                 target = qvals.clone()
                 target[action] = reward
             loss = torch.sum(torch.pow(qvals - target, 2))
-                
+            losses[j].append(loss.detach().numpy())
+            loss.backward()
+            with torch.no_grad():  # K
+                params[j] = params[j] - lr * params[j].grad
+            params[j].requires_grad = True
+        with torch.no_grad():  # L
+            grid.data = grid_.data
+
+    plt.figure(figsize=(10, 5))
+    plt.plot(np.array(losses).T)
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss')
+    plt.show()
+
+    # show the final grid
+    plt.figure(figsize=(10, 5))
+    plt.imshow(np.expand_dims(grid, axis=0))
+    plt.show()
+
