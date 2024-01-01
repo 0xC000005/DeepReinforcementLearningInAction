@@ -152,7 +152,7 @@ if __name__ == '__main__':
 
     params = {
         'epochs': 1000,
-        'n_workers': 79,
+        'n_workers': 40,
     }
 
     # A shared global counter using multiprocessing built-in shared objects.
