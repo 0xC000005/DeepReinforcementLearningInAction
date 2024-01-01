@@ -21,7 +21,7 @@ def get_reward(s, a):
     """
     This function takes a neighbors in s and compares them to agent a;
     if they match, the reward is higher
-    :param s: all neighbors of the agent
+    :param s: all neighbors of
     :param a: the agent
     :return: reward
     """
