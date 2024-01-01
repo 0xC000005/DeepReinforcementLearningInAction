@@ -193,19 +193,19 @@ if __name__ == '__main__':
     # Save the model
     torch.save(MasterNode.state_dict(), 'model.pt')
 
-    env = gym.make("CartPole-v1")
-    env.reset()
-
-    for i in range(1000):
-        state_ = np.array(env.env.state)
-        state = torch.from_numpy(state_).float()
-        logits, value = MasterNode(state)
-        action_dist = torch.distributions.Categorical(logits=logits)
-        action = action_dist.sample()
-        state2, reward, done, info = env.step(action.detach().numpy())
-        if done:
-            print("Lost")
-            env.reset()
-        state_ = np.array(env.env.state)
-        state = torch.from_numpy(state_).float()
-        env.render()
+    # env = gym.make("CartPole-v1")
+    # env.reset()
+    #
+    # for i in range(1000):
+    #     state_ = np.array(env.env.state)
+    #     state = torch.from_numpy(state_).float()
+    #     logits, value = MasterNode(state)
+    #     action_dist = torch.distributions.Categorical(logits=logits)
+    #     action = action_dist.sample()
+    #     state2, reward, done, info = env.step(action.detach().numpy())
+    #     if done:
+    #         print("Lost")
+    #         env.reset()
+    #     state_ = np.array(env.env.state)
+    #     state = torch.from_numpy(state_).float()
+    #     env.render()
