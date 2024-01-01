@@ -75,8 +75,8 @@ def save_best_fn(policy):
     torch.save(policy.state_dict(), 'best_dqn.pth')
 
 
-def stop_fn(mean_rewards):
-    return mean_rewards >= env.spec.reward_threshold
+# def stop_fn(mean_rewards):
+#     return mean_rewards >= env.spec.reward_threshold
 
 
 def train_fn(epoch, env_step):  # exp decay
@@ -100,7 +100,6 @@ result = ts.trainer.OffpolicyTrainer(
     update_per_step=update_per_step,
     train_fn=train_fn,
     test_fn=test_fn,
-    stop_fn=stop_fn,
     save_fn=save_best_fn,
 ).run()
 

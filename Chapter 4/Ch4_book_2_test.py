@@ -99,9 +99,13 @@ def test_fn(epoch, env_step):
 # print(f'Finished training! Use {result["duration"]}')
 
 # load the best_dqn.pth
-policy.load_state_dict(torch.load('best_dqn.pth'))
+policy.load_state_dict(torch.load('best_dqn.pth', map_location=torch.device('cpu')))
 policy.eval()
 policy.set_eps(eps_test)
 env = gym.make(task, render_mode='human')
 collector = ts.data.Collector(policy, env, exploration_noise=True)
 collector.collect(n_episode=10, render=1 / 60)
+
+
+if __name__ == '__main__':
+    pass
