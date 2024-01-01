@@ -61,7 +61,7 @@ def run_episode(worker_env, worker_model):
         log_probabilities_ = policy.view(-1)[action]
         log_probabilities.append(log_probabilities_)
 
-        state_, temp_reward, done, info, extra = worker_env.step(action.detach().numpy())
+        state_, temp_reward, done, info = worker_env.step(action.detach().numpy())
         state = torch.from_numpy(state_).float()
 
         # If the last action caused the episode to end, sets the reward to -10 and
@@ -152,7 +152,7 @@ if __name__ == '__main__':
 
     params = {
         'epochs': 1000,
-        'n_workers': 79,
+        'n_workers': 7,
     }
 
     # A shared global counter using multiprocessing built-in shared objects.
@@ -193,19 +193,19 @@ if __name__ == '__main__':
     # Save the model
     torch.save(MasterNode.state_dict(), 'model.pt')
 
-    # env = gym.make("CartPole-v1")
-    # env.reset()
-    #
-    # for i in range(1000):
-    #     state_ = np.array(env.env.state)
-    #     state = torch.from_numpy(state_).float()
-    #     logits, value = MasterNode(state)
-    #     action_dist = torch.distributions.Categorical(logits=logits)
-    #     action = action_dist.sample()
-    #     state2, reward, done, info = env.step(action.detach().numpy())
-    #     if done:
-    #         print("Lost")
-    #         env.reset()
-    #     state_ = np.array(env.env.state)
-    #     state = torch.from_numpy(state_).float()
-    #     env.render()
+    env = gym.make("CartPole-v1")
+    env.reset()
+
+    for i in range(1000):
+        state_ = np.array(env.env.state)
+        state = torch.from_numpy(state_).float()
+        logits, value = MasterNode(state)
+        action_dist = torch.distributions.Categorical(logits=logits)
+        action = action_dist.sample()
+        state2, reward, done, info = env.step(action.detach().numpy())
+        if done:
+            print("Lost")
+            env.reset()
+        state_ = np.array(env.env.state)
+        state = torch.from_numpy(state_).float()
+        env.render()
