@@ -78,3 +78,5 @@ Sandbox
 Chapter 4/log/rainbow/
 
 Chapter 4/log/dqn/
+
+*.pth
