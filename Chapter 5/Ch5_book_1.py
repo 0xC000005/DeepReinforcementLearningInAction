@@ -61,7 +61,7 @@ def run_episode(worker_env, worker_model):
         log_probabilities_ = policy.view(-1)[action]
         log_probabilities.append(log_probabilities_)
 
-        state_, _, done, info = worker_env.step(action.detach().numpy())
+        state_, temp_reward, done, info, extra = worker_env.step(action.detach().numpy())
         state = torch.from_numpy(state_).float()
 
         # If the last action caused the episode to end, sets the reward to -10 and
@@ -152,7 +152,7 @@ if __name__ == '__main__':
 
     params = {
         'epochs': 1000,
-        'n_workers': 40,
+        'n_workers': 79,
     }
 
     # A shared global counter using multiprocessing built-in shared objects.
