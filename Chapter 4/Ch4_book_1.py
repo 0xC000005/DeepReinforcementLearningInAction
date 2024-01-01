@@ -30,18 +30,21 @@ def loss_func(preds, r):
 
 
 l1 = 4
-l2 = 150
-l3 = 2
+l2 = 300
+l3 = 300
+l4 = 2
 
 # Define the policy network
 model = torch.nn.Sequential(
     torch.nn.Linear(l1, l2),
     torch.nn.ReLU(),
     torch.nn.Linear(l2, l3),
+    torch.nn.ReLU(),
+    torch.nn.Linear(l3, l4),
     torch.nn.Softmax()
 )
 
-learning_rate = 0.0009
+learning_rate = 0.0001
 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
 MAX_EPISODES = 1000
@@ -134,6 +137,7 @@ plt.ylabel("Episode Duration", fontsize=22)
 plt.xlabel("Training Epochs", fontsize=22)
 plt.plot(avg_score, color='green')
 plt.show()
+
 
 if __name__ == '__main__':
     pass
