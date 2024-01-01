@@ -152,7 +152,7 @@ if __name__ == '__main__':
 
     params = {
         'epochs': 1000,
-        'n_workers': 2,
+        'n_workers': 79,
     }
 
     # A shared global counter using multiprocessing built-in shared objects.
@@ -186,7 +186,9 @@ if __name__ == '__main__':
         plt.plot(ep)
     plt.xlabel('Epoch')
     plt.ylabel('Episode Length')
-    plt.show()
+
+    # save the plot
+    plt.savefig('episode_lengths.png')
 
     # Save the model
     torch.save(MasterNode.state_dict(), 'model.pt')
