@@ -15,7 +15,7 @@ else:
 
 task = 'LunarLander-v2'
 eps_test = 0.01
-eps_train = 0.73
+eps_train = 0.1
 buffer_size = 100000
 lr = 0.013
 gamma = 0.99
@@ -97,12 +97,13 @@ def save_best_fn(policy):
 
 
 def train_fn(epoch, env_step):  # exp decay
-    # eps = max(eps_train * (1 - 5e-6) ** env_step, eps_test)
     if env_step <= 10000:
         policy.set_eps(eps_train)
-    elif env_step <= 50000:
-        eps = eps_train - (env_step - 10000) / 40000 * (0.9 * eps_train)
+    elif env_step <= 500000:
+        eps = eps_train - (env_step - 100000) / 400000 * (0.9 * eps_train)
         policy.set_eps(eps)
+    else:
+        policy.set_eps(0.1 * eps_train)
 
 
 
