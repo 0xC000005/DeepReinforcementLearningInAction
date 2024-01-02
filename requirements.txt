@@ -1,7 +1,8 @@
-numpy~=1.26.2
 torch~=2.1.2
 gym~=0.10.5
 matplotlib~=3.8.2
 tqdm~=4.66.1
-magent~=0.2.4
 scipy~=1.11.4
+tianshou~=0.5.1
+numpy~=1.24.4
+gymnasium~=0.29.1

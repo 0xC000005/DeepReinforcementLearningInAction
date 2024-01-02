@@ -139,59 +139,8 @@ if __name__ == '__main__':
     # Creates a global, shared actor-critic model
     MasterNode = ActorCritic()
 
-    # The shared_memory() method will allow the parameters of the model to the shared across processes rather than
-    # being copied.
-    MasterNode.share_memory()
-
-    # Sets up a list to store the instantiated processes
-    processes = []
-
-    # Initialize a multiprocessing Manager and a Manager list to collect episode lengths from all workers
-    manager = mp.Manager()
-    all_episode_lengths = manager.list()
-
-    params = {
-        'epochs': 1000,
-        'n_workers': 7,
-    }
-
-    # A shared global counter using multiprocessing built-in shared objects.
-    # The 'i' parameter indicates the type is integer
-    counter = mp.Value('i', 0)
-
-    for i in range(params['n_workers']):
-        p = mp.Process(target=worker, args=(i, MasterNode, counter, params, all_episode_lengths))
-        p.start()
-        processes.append(p)
-
-    # "Joins" each process to wait for it to finish before returning to the main process
-    for p in processes:
-        p.join()
-
-    # Makes sure each process is terminated
-    for p in processes:
-        p.terminate()
-
-    # Prints the global counter-value and the first process's exit code (0)
-    print(counter.value, processes[0].exitcode)
-
-    all_episode_lengths = list(all_episode_lengths)
-
-    # plot the smooth episode lengths for each worker over time
-    # calculate a moving average (nd array) over 10 episodes for each worker's episode lengths
-    smoothed_episode_lengths = [np.convolve(ep, np.ones((10,)) / 10, mode='valid') for ep in all_episode_lengths]
-
-    # plot the nd arrays episode lengths for each worker
-    for ep in smoothed_episode_lengths:
-        plt.plot(ep)
-    plt.xlabel('Epoch')
-    plt.ylabel('Episode Length')
-
-    # save the plot
-    plt.savefig('episode_lengths.png')
-
-    # Save the model
-    torch.save(MasterNode.state_dict(), 'model.pt')
+    # load the state dict of the MasterNode from the 'model.pt' file
+    MasterNode.load_state_dict(torch.load('model.pt'))
 
     env = gym.make("CartPole-v1")
     env.reset()
