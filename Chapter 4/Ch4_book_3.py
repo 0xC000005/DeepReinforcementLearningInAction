@@ -97,8 +97,13 @@ def save_best_fn(policy):
 
 
 def train_fn(epoch, env_step):  # exp decay
-    eps = max(eps_train * (1 - 5e-6) ** env_step, eps_test)
-    policy.set_eps(eps)
+    # eps = max(eps_train * (1 - 5e-6) ** env_step, eps_test)
+    if env_step <= 10000:
+        policy.set_eps(eps_train)
+    elif env_step <= 50000:
+        eps = eps_train - (env_step - 10000) / 40000 * (0.9 * eps_train)
+        policy.set_eps(eps)
+
 
 
 def test_fn(epoch, env_step):
