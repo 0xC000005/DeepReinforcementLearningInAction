@@ -101,10 +101,25 @@ class Game:
         # self.game_player_1.update_current_action_space(opponent_privilege=self.game_player_2.player_current_privilege)
         # self.game_player_2.update_current_action_space(opponent_privilege=self.game_player_1.player_current_privilege)
 
-    def update_player_current_reward(self, first_hand: Player.Player, second_hand: Player.Player):
-        player_1_reward, player_2_reward = calculate_payoff(first_hand=first_hand, second_hand=second_hand)
-        first_hand.player_current_reward = player_1_reward
-        second_hand.player_current_reward = player_2_reward
+    def update_player_current_reward(self,
+                                     first_hand: Player.Player,
+                                     second_hand: Player.Player,
+                                     advantaged_agent_illegal_move: bool,
+                                     disadvantaged_agent_illegal_move: bool):
+        if not advantaged_agent_illegal_move and not disadvantaged_agent_illegal_move:
+            player_1_reward, player_2_reward = calculate_payoff(first_hand=first_hand, second_hand=second_hand)
+            first_hand.player_current_reward = player_1_reward
+            second_hand.player_current_reward = player_2_reward
+        else:
+            if advantaged_agent_illegal_move:
+                first_hand.player_current_reward = -100
+            else:
+                first_hand.player_current_reward = 0
+
+            if disadvantaged_agent_illegal_move:
+                second_hand.player_current_reward = -100
+            else:
+                second_hand.player_current_reward = 0
 
     def play(self,
              player_1_current_privilege_from_team: int,
