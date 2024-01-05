@@ -24,6 +24,7 @@ def action_space_to_one_hot(action_space):
 
 # TODO: starting with a large ep
 for epoch in tqdm(range(epochs)):
+# for epoch in range(epochs):
     env.reset()
     if epoch <= 5000:
         epsilon = 0.5
@@ -80,7 +81,7 @@ for epoch in tqdm(range(epochs)):
                 epsilon=epsilon,
                 action_mask=one_hot_advantaged_action_space)
 
-            advantaged_agent.take_action(action=advantaged_agent_action)
+            advantaged_illegal_current_move = advantaged_agent.take_action(action=advantaged_agent_action)
 
             if len(advantaged_agent.replay_buffer) != 0:
                 # appending to the deque replay buffer
@@ -104,13 +105,16 @@ for epoch in tqdm(range(epochs)):
                 epsilon=epsilon,
                 action_mask=one_hot_disadvantaged_action_space)
 
-            disadvantaged_agent.take_action(action=disadvantaged_agents_action)
+            disadvantaged_agent_illegal_move = disadvantaged_agent.take_action(action=disadvantaged_agents_action)
 
             if len(disadvantaged_agent.replay_buffer) != 0:
                 # appending to the deque replay buffer
                 disadvantaged_agent.replay_buffer[-1][3] = disadvantaged_agent_state
 
-            game.update_player_current_reward(first_hand=advantaged_agent, second_hand=disadvantaged_agent)
+            game.update_player_current_reward(first_hand=advantaged_agent,
+                                              second_hand=disadvantaged_agent,
+                                              advantaged_agent_illegal_move=advantaged_illegal_current_move,
+                                              disadvantaged_agent_illegal_move=disadvantaged_agent_illegal_move)
 
             advantaged_agent_reward = advantaged_agent.player_current_reward
             disadvantaged_agent_reward = disadvantaged_agent.player_current_reward

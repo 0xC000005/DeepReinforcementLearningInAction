@@ -176,12 +176,13 @@ class MultiAgentEnv:
 
         print(team_score_board.to_markdown())
 
-    def get_action_and_blocking_statistics_tables(self) -> (list, list):
+    def get_action_blocking_and_illegal_action_statistics(self) -> (list, list, int):
         # get the flatten player list
         flatten_player_list = Revolution.get_flatten_player_list(teams=self.teams)
 
         action_statistics_table = [0] * 3
         blocking_statistics_table = [0] * 3
+        illegal_action_count = 0
 
         for player in flatten_player_list:
             # iterate players history
@@ -189,6 +190,7 @@ class MultiAgentEnv:
                 # get the action and blocking action
                 player_current_action = history['player_current_action']
                 player_current_blocking_action = history['player_currently_blocking']
+                illegal_action_count += history['player_current_illegal_action']
 
                 # update the action statistics table
                 action_statistics_table[player_current_action] += 1
@@ -197,7 +199,7 @@ class MultiAgentEnv:
                 if player_current_blocking_action is not None:
                     blocking_statistics_table[player_current_blocking_action] += 1
 
-        return action_statistics_table, blocking_statistics_table
+        return action_statistics_table, blocking_statistics_table, illegal_action_count
 
     def get_teams_score_statistics_table(self) -> list:
         # get the list of teams' current total reward
@@ -206,18 +208,18 @@ class MultiAgentEnv:
     def display_logging_info(self, epoch, epsilon):
         # construct a dataframe table with the following: epoch, epsilon, action_statistics_table,
         # blocking_statistics_table, great_chaos_count, teams_score_statistics_table and wealth_disparity
-        action_statistics_table, blocking_statistics_table = self.get_action_and_blocking_statistics_tables()
+        action_statistics_table, blocking_statistics_table, illegal_action_count = self.get_action_blocking_and_illegal_action_statistics()
         teams_score_statistics_table = self.get_teams_score_statistics_table()
 
         logging_table = pd.DataFrame({
             "Action": [action_statistics_table],
             "Blocking": [blocking_statistics_table],
+            "Illegal Action": illegal_action_count,
             "Great Chaos": [self.great_chaos_count],
             "Teams": [teams_score_statistics_table],
             "Wealth Disparity": [get_wealth_disparity(teams_score_statistics_table)],
             "Epsilon": [epsilon]
         })
-
 
         if self.logging is None:
             self.logging = logging_table
@@ -232,4 +234,3 @@ class MultiAgentEnv:
 
         if epoch % 1000 == 0:
             self.logging.to_csv("logging.csv")
-

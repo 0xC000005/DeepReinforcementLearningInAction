@@ -77,6 +77,12 @@ class Player:
         self.player_current_action_space = [0, 1, 2]
         self.player_current_privilege = player_current_privilege
 
+    def check_if_player_current_action_is_illegal(self):
+        if self.player_current_action not in self.player_current_action_space:
+            return 1
+        else:
+            return 0
+
     def update_player_history(self):
         # append the players complete current stage into the player's history
         history = {
@@ -84,7 +90,8 @@ class Player:
             "player_current_action": self.player_current_action,
             "player_current_reward": self.player_current_reward,
             "player_currently_blocking": self.player_currently_blocking,
-            "player_current_action_space": self.player_current_action_space
+            "player_current_action_space": self.player_current_action_space,
+            "player_current_illegal_action": self.check_if_player_current_action_is_illegal()
         }
 
         # append the history to the player's history
@@ -137,8 +144,11 @@ class Player:
 
         # check if the current action taken is within the current action space, it not, raise a error
         if self.player_current_action not in self.player_current_action_space:
-            raise ValueError("Player {}'s current action {} is not in the current action space {}".format(
-                self.player_name, self.player_current_action, self.player_current_action_space))
+            # raise ValueError("Player {}'s current action {} is not in the current action space {}".format(
+            #     self.player_name, self.player_current_action, self.player_current_action_space))
+            return True
+
+        return False
 
     def __str__(self):
         # printout the player's information in a sublist format with \t indentation
