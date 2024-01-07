@@ -13,7 +13,7 @@ def get_wealth_disparity(teams_score_statistics_table: list) -> float:
 
 
 class MultiAgentEnv:
-    def __init__(self, num_agents=8, num_teams=4, advantage_bonus=1.5, failed_revolution_penalty=0):
+    def __init__(self, num_agents=40, num_teams=4, advantage_bonus=1.5, failed_revolution_penalty=0):
         self.num_agents = num_agents
         self.num_teams = num_teams
         # randomly assign each team with an initial privilege from the range of [1, 10]
