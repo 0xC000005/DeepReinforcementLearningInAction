@@ -2,6 +2,8 @@ import Revolution
 import random
 import math
 import pandas as pd
+import json
+import datetime
 
 
 def get_wealth_disparity(teams_score_statistics_table: list) -> float:
@@ -26,6 +28,7 @@ class MultiAgentEnv:
         self.failed_revolution_penalty = failed_revolution_penalty
         self.logging = None
         self.great_chaos_count = 0
+        self.logging_filename = 'log_' + datetime.datetime.now().strftime("%Y%m%d-%H%M%S") + '.csv'
 
     def reset(self):
         """
@@ -205,7 +208,7 @@ class MultiAgentEnv:
         # get the list of teams' current total reward
         return Revolution.get_teams_current_total_reward_list(teams=self.teams)
 
-    def display_logging_info(self, epoch, epsilon):
+    def recording_log(self, current_epoch, current_epsilon, total_epoch, rounds_of_game_per_epoch):
         # construct a dataframe table with the following: epoch, epsilon, action_statistics_table,
         # blocking_statistics_table, great_chaos_count, teams_score_statistics_table and wealth_disparity
         action_statistics_table, blocking_statistics_table, illegal_action_count = self.get_action_blocking_and_illegal_action_statistics()
@@ -218,11 +221,33 @@ class MultiAgentEnv:
             "Great Chaos": [self.great_chaos_count],
             "Teams": [teams_score_statistics_table],
             "Wealth Disparity": [get_wealth_disparity(teams_score_statistics_table)],
-            "Epsilon": [epsilon]
+            "Epsilon": [current_epsilon]
         })
 
         if self.logging is None:
-            self.logging = logging_table
+            # create a metadata dictionary consist of the number of team, number of agents, the total epoch,
+            # and for each epoch how many rounds of game is there
+
+            metadata = {"Number of Teams": self.num_teams,
+                        "Number of Agents": self.num_agents,
+                        "Total Epoch": total_epoch,
+                        "Rounds of Game per Epoch": rounds_of_game_per_epoch}
+
+            # convert the metadata dictionary into a json
+            metadata = json.dumps(metadata)
+
+            # convert the metadata into a string
+            metadata = str(metadata)
+
+            metadata_df = pd.DataFrame({"Action": [metadata],
+                                        "Blocking": 0,
+                                        "Illegal Action": 0,
+                                        "Great Chaos": 0,
+                                        "Teams": 0,
+                                        "Wealth Disparity": 0,
+                                        "Epsilon": 0})
+
+            self.logging = pd.concat([metadata_df, logging_table])
 
         else:
             self.logging = pd.concat([self.logging, logging_table], ignore_index=True)
@@ -232,5 +257,5 @@ class MultiAgentEnv:
 
         self.great_chaos_count = 0
 
-        if epoch % 1000 == 0:
-            self.logging.to_csv("logging.csv")
+        if current_epoch % 100 == 0:
+            self.logging.to_csv(self.logging_filename)

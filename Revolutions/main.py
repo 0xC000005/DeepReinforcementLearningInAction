@@ -1,5 +1,4 @@
 import torch
-import numpy as np
 import Revolution
 from MultiAgentEnv import MultiAgentEnv
 from Models import DoubleDQN_dynamic
@@ -10,6 +9,7 @@ env = MultiAgentEnv()
 net = DoubleDQN_dynamic()
 epsilon = 0.7
 epochs = 100000
+rounds_of_game_per_epoch = 100
 revolution_percentage = 0.15
 total_rewards = 0
 wealth_disparity = 0
@@ -33,9 +33,9 @@ for epoch in tqdm(range(epochs)):
     done = 0
 
     # run the game for 100 rounds
-    for i in range(100):
+    for i in range(rounds_of_game_per_epoch):
 
-        if round == 99:
+        if round == rounds_of_game_per_epoch - 1:
             done = 1
 
         # if epoch % 1000 == 0:
@@ -71,7 +71,6 @@ for epoch in tqdm(range(epochs)):
             #  array
             relative_team_rewards = Revolution.get_relative_teams_reward(player=advantaged_agent, teams=env.teams)
 
-            # agent state = combined list of one hot action space and relative team reward
             advantaged_agent_state = one_hot_advantaged_action_space + relative_team_rewards
 
             advantaged_agent_state = torch.tensor(advantaged_agent_state).float().reshape(8, )
@@ -163,7 +162,11 @@ for epoch in tqdm(range(epochs)):
                            disadvantaged_agents=disadvantage_agents,
                            done=done)
 
-    env.display_logging_info(epoch=epoch, epsilon=epsilon)
+    env.recording_log(current_epoch=epoch,
+                current_epsilon=epsilon,
+                total_epoch=epochs,
+                rounds_of_game_per_epoch=rounds_of_game_per_epoch)
+
     env.update_all_models(epoch=epoch)
 
 if __name__ == '__main__':
