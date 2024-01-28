@@ -138,4 +138,4 @@ if __name__ == '__main__':
     plt.plot(running_average_of_most_recent_10_rewards_received_over_time)
     plt.xlabel('Plays')
     plt.ylabel('Avg Optimal Percentage')
-    plt.show()
+    # plt.show()
