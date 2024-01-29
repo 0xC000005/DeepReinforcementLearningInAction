@@ -117,7 +117,7 @@ def train(env, epochs=5000, learning_rate=1e-2):
 
 
 if __name__ == '__main__':
-    N, D_in, H, D_out = 1, NUMBER_OF_BANDITS, 100, NUMBER_OF_BANDITS
+    N, D_in, H, D_out = 1, NUMBER_OF_BANDITS, 150, NUMBER_OF_BANDITS
 
     model = torch.nn.Sequential(
         torch.nn.Linear(D_in, H),
